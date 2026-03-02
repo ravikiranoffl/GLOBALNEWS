@@ -2,8 +2,8 @@ name: Daily Global News Generator
 
 on:
   schedule:
-    - cron: '30 17 * * *'
-  workflow_dispatch:
+    - cron: '30 17 * * *' # Runs at 11:00 PM IST (17:30 UTC)
+  workflow_dispatch:      # Allows you to run it manually for testing
 
 jobs:
   generate-news:
@@ -18,20 +18,40 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12' # Updated to Python 3.12
+          python-version: '3.12'
 
-      - name: Install Google GenAI Library
-        run: pip install google-genai # Updated to the new library
+      - name: Install Dependencies
+        run: pip install google-genai
 
       - name: Run News Generator Script
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python generate_news.py
 
-      - name: Commit and Push the New File
+      - name: Commit and Push Updates
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add 2026/
-          git commit -m "GN$(date +'%Y%m%d')A1" || echo "No changes to commit"
+          git add .
+          # Commits news report, README, and the email_body file
+          git commit -m "GN$(date +'%Y%m%d')A1 - News Update" || echo "No changes to commit"
           git push
+
+      - name: Send Breaking News Email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.GMAIL_USER }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          
+          # --- Email Content ---
+          subject: "🚨 HOT NEWS: Briefing for $(date +'%Y-%m-%d')"
+          to: ${{ secrets.GMAIL_USER }}
+          from: "Gemini Intelligence Bot"
+          
+          # This reads the 'Hot Lines' summary created by your Python script
+          body: file://email_body.txt
+          
+          # Ensures the email is sent as clean plain text for easy reading on mobile
+          content_type: text/plain
