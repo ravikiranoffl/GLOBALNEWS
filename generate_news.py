@@ -3,7 +3,7 @@ import datetime
 import google.generativeai as genai
 
 # 1. Securely load the API Key from GitHub Secrets
-api_key = os.environ.get("GEMINI_API_KEY")
+api_key = os.environ.get("AIzaSyAtFuXcLu62F28iYT_1PM9soe230XCNelE")
 if not api_key:
     raise ValueError("GEMINI_API_KEY environment variable not set. Please check your GitHub Secrets.")
 
