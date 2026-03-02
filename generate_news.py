@@ -550,7 +550,7 @@ CRITICAL: You MUST use Google Search to find real-time news for today,
               {html_list}
             </ul>
             <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-            <p style="font-size: 11px; color: #999; text-align: center;">జెమిని ద్వారా పంపబడింది • పూర్తి నివేదిక GitHubలో ఉంది</p>
+            <p style="font-size: 11px; color: #999; text-align: center;">జెమిని ద్వారా పంపబడింది • పూర్తి నివేదిక ఆర్చివ్ లో ఉంది</p>
           </body>
         </html>
         """
