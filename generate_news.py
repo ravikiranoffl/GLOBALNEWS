@@ -516,14 +516,22 @@ CRITICAL: You MUST use Google Search to find real-time news for today,
     print(f"Successfully created and saved: {full_path}")
 
 # 11. Create a Short Summary for the Email
+    # 11. Create a Short Summary for the Email
     email_summary_path = "email_body.txt"
-    # We grab the Summary section (Section 26) from the AI content
+    
+    # Find where the summary starts
     summary_start = content.find("## SECTION 26")
-    short_summary = content[summary_start:] if summary_start != -1 else "New Briefing Available in Repo."
+    
+    if summary_start != -1:
+        # This skips the words "## SECTION 26" and starts at the news
+        short_summary = content[summary_start + 13:].strip() 
+    else:
+        short_summary = "New Briefing Available in Repo."
 
     with open(email_summary_path, "w", encoding="utf-8") as f:
-        f.write(f"HOT TOPICS & BREAKING NEWS - {full_date_str}\n\n")
-        f.write(short_summary[:1000]) # Limits the email length to about 20-30 lines
+        f.write(f"🚨 HOT TOPICS & BREAKING NEWS - {full_date_str}\n")
+        f.write(f"------------------------------------------\n\n")
+        f.write(short_summary[:1200]) # A little extra room for the headlines
 
 if __name__ == "__main__":
     generate_and_save_news()
