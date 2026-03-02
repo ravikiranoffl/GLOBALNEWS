@@ -515,10 +515,7 @@ CRITICAL: You MUST use Google Search to find real-time news for today,
     
     print(f"Successfully created and saved: {full_path}")
 
-# --- 11. DATE FORMATTING & TELUGU TRANSLATION FOR EMAIL ---
-    import datetime
-    
-    # Format date as: 3 March 2026
+# --- 11. DATE FORMATTING & TELUGU TRANSLATION FOR EMAIL --
     # Note: Use %-d for Linux (GitHub Actions) to remove the leading zero
     now = datetime.datetime.now()
     display_date = now.strftime("%-d %B %Y")
