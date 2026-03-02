@@ -1,16 +1,14 @@
 import os
 import datetime
-import google.generativeai as genai
+from google import genai # Updated import
 
 # 1. Securely load the API Key from GitHub Secrets
 api_key = os.environ.get("AIzaSyAtFuXcLu62F28iYT_1PM9soe230XCNelE")
 if not api_key:
     raise ValueError("GEMINI_API_KEY environment variable not set. Please check your GitHub Secrets.")
 
-genai.configure(api_key=api_key)
-
-# 2. Set the AI Model (Using the latest free-tier Flash model)
-model = genai.GenerativeModel('gemini-2.5-flash')
+# 2. Initialize the new GenAI Client
+client = genai.Client(api_key=api_key)
 
 def generate_and_save_news():
     # 3. Calculate precise IST Date and Time
@@ -18,13 +16,12 @@ def generate_and_save_news():
     now = datetime.datetime.now(ist_timezone)
     
     report_id_date = now.strftime("%Y-%m-%d")          
-    full_date_str = now.strftime("%A, %d %B %Y")  
+    full_date_str = now.strftime("%A, %d %B %Y")       
     time_str = now.strftime("%H:%M IST")               
     
     print(f"Generating briefing for {full_date_str} at {time_str}...")
 
     # 4. Your Complete Master Prompt
-    # We use placeholder tags like [REPORT_ID_DATE] to inject today's exact time later.
     raw_prompt = """
 Act as a Senior Global News Analyst, Strategic Intelligence Advisor, Policy Expert, and Technology Futurist.
 Produce a comprehensive daily global intelligence briefing that explains world events clearly, factually, and in structured chronological context.
@@ -487,8 +484,11 @@ Output strictly using the following Markdown format:
     final_prompt = final_prompt.replace("[FULL_DATE_STR]", full_date_str)
     final_prompt = final_prompt.replace("[TIME_STR]", time_str)
 
-    # 6. Call the Gemini API 
-    response = model.generate_content(final_prompt)
+    # 6. Call the Gemini API using the new v2 syntax
+    response = client.models.generate_content(
+        model='gemini-2.5-flash',
+        contents=final_prompt,
+    )
     content = response.text
     
     # 7. Define folder and exact file path
