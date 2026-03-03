@@ -1,12 +1,12 @@
 import os
 import datetime
-import time 
+import time
 from google import genai
 from google.genai import types
 
 API_KEY = os.environ.get("GEMINI_API_KEY")
 if not API_KEY:
-    raise ValueError("GEMINI_API_KEY environment variable not found!")
+    raise ValueError("🚨 GEMINI_API_KEY environment variable not found!")
 
 MODEL_NAME = "gemini-2.5-flash"  
 client = genai.Client(api_key=API_KEY)
@@ -33,9 +33,12 @@ os.makedirs(year_folder, exist_ok=True)
 
 md_filepath = f"{year_folder}/GN-{file_date_str}.md"
 
-global_prompt = f"""
-Act as a Senior Global Intelligence Analyst, narrator. Provide news for {full_date_str}.
-Format strictly as Markdown. Do not include introductory text. Maximum 3 bullets per section.
+# ==============================
+# MERGED MAIN PROMPT (Sections 1-9, 11-13)
+# ==============================
+main_prompt = f"""
+Act as a Senior Global Intelligence Analyst and Regional Expert. Provide news for {full_date_str}.
+Format strictly as Markdown. Do not include introductory text. 
 
 ## SECTION 1 — Global Pulse
 (Trending global geopolitics, wars, markets, events, summits - Format strictly as Markdown. 
@@ -61,48 +64,15 @@ visits and all other important news that daily regional news paper have. - 4-7 l
 
 ## SECTION 6 — Global Economy
 (Stock markets, inflation, central banks, commodities) - 4-7 lines 
-"""
-
-india_prompt = f"""
-Act as a Senior Intelligence Analyst covering India for {full_date_str}.
-Format strictly as Markdown. Do not include introductory text. 
-Most important text in concise without missing actual essence
-The news consists of daily updates, political, geographical, tech updates, laws, incidents, events, 
-visits and all other important news that daily regional news paper have.
 
 ## SECTION 7 — India National
 (Top national developments of last 24 hours in politics, economy, and governance)
-"""
-
-telugu_prompt = f"""
-Act as a Regional Intelligence Analyst for the Telugu States for {full_date_str}.
-Format strictly as Markdown. Do not include introductory text. 
-Most important text in concise without missing actual essence
-The news consists of daily updates, political, geographical, tech updates, laws, incidents, events, 
-visits and all other important news that daily regional news paper have.
 
 ## SECTION 8 — Telangana State Updates
 (All major breaking news and updates in Telangana)
 
 ## SECTION 9 — Andhra Pradesh State Updates
 (All major breaking news and updates in Andhra Pradesh)
-"""
-
-gold_prompt = f"""
-Verify today's gold rates for Hyderabad from Goodreturns.in for {full_date_str}.
-Provide output exactly in this format. Do not add introductory text.
-Strictly from the website: https://www.goodreturns.in/gold-rates/hyderabad.html
-
-## SECTION 10 — Gold Rates (Hyderabad Market)
-- **24 Carat (10g):** ₹ amount (+/- ₹ difference amount compared to yesterday)
-- **22 Carat (10g):** ₹ amount (+/- ₹ difference amount compared to yesterday)
-- **Reason for Movement:**
-
-"""
-
-closing_prompt = f"""
-Act as a Senior Global Intelligence Analyst for {full_date_str}.
-Format strictly as Markdown. Do not include introductory text.
 
 ## SECTION 11 — This Day in History (India)
 (All major historical events that happened on this date in Indian history)
@@ -116,9 +86,23 @@ From all sections at least 2 lines of explanation or bulletins from all 1 to 12 
 I need 12 bulletins with two lines for each section! 
 """
 
+# ==============================
+# SEPARATE GOLD PROMPT (Section 10)
+# ==============================
+gold_prompt = f"""
+Verify today's gold rates for Hyderabad from Goodreturns.in for {full_date_str}.
+Provide output exactly in this format. Do not add introductory text.
+Strictly from the website: https://www.goodreturns.in/gold-rates/hyderabad.html
+
+## SECTION 10 — Gold Rates (Hyderabad Market)
+- **24 Carat (10g):** ₹ amount (+/- ₹ difference amount compared to yesterday)
+- **22 Carat (10g):** ₹ amount (+/- ₹ difference amount compared to yesterday)
+- **Reason for Movement:**
+"""
+
 def fetch_clean_content(prompt_name, prompt_text):
     try:
-        print(f"Generating {prompt_name}...")
+        print(f"⏳ Generating {prompt_name}...")
         response = client.models.generate_content(
             model=MODEL_NAME,
             contents=prompt_text,
@@ -127,20 +111,27 @@ def fetch_clean_content(prompt_name, prompt_text):
         clean_text = response.text.replace("```markdown", "").replace("```html", "").replace("```", "").strip()
         
         # <-- BREATH ADDED HERE -->
-        print("Pausing for 10 seconds to prevent API overload...")
+        print("   💤 Pausing for 10 seconds to prevent API overload...")
         time.sleep(10)
         
         return clean_text
     except Exception as e:
-        print(f"Error in {prompt_name}: {e}")
+        print(f"❌ Error in {prompt_name}: {e}")
         return f"Error generating {prompt_name}."
 
-global_content = fetch_clean_content("Global Sections (1-6)", global_prompt)
-india_content = fetch_clean_content("India Section (7)", india_prompt)
-telugu_content = fetch_clean_content("Telugu States (8-9)", telugu_prompt)
-gold_content = fetch_clean_content("Gold Rates (10)", gold_prompt)
-closing_content = fetch_clean_content("History & Summary (11-13)", closing_prompt)
+# 1. Fetch Main Report
+main_content = fetch_clean_content("Main Intelligence Report", main_prompt)
 
+# 2. Fetch Gold Report
+gold_content = fetch_clean_content("Gold Rates (10)", gold_prompt)
+
+# 3. Safely merge Gold into the middle of the Main Report
+if "## SECTION 11" in main_content:
+    final_content_body = main_content.replace("## SECTION 11", f"{gold_content}\n\n## SECTION 11")
+else:
+    final_content_body = main_content + "\n\n" + gold_content
+
+# 4. Build Final Document
 final_report = f"""# Global Daily Intelligence Briefing
 
 Report ID: GN-{report_id_date}
@@ -151,15 +142,7 @@ Report Generated By: Google Gemini 2.5 Flash
 
 ---
 
-{global_content}
-
-{india_content}
-
-{telugu_content}
-
-{gold_content}
-
-{closing_content}
+{final_content_body}
 
 -- END MAIN REPORT --
 """
@@ -168,13 +151,16 @@ with open(md_filepath, "w", encoding="utf-8") as f:
     f.write(final_report)
 print(f"\nFinal Markdown saved flawlessly at: {md_filepath}")
 
+# ==============================
+# TELUGU EMAIL TRANSLATION
+# ==============================
 print("Generating Clean Telugu Email Summary...")
 email_summary_path = "email_body.html"
 
-summary_start = closing_content.find("## SECTION 13")
+summary_start = final_content_body.find("## SECTION 13")
 
 if summary_start != -1:
-    english_summary = closing_content[summary_start:].strip()
+    english_summary = final_content_body[summary_start:].strip()
     
     telugu_translation_prompt = f"""
     Translate this news summary into professional Telugu (Vaarthalu style).
