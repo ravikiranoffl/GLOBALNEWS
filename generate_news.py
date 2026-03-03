@@ -1,11 +1,12 @@
 import os
 import datetime
+import time 
 from google import genai
 from google.genai import types
 
 API_KEY = os.environ.get("GEMINI_API_KEY")
 if not API_KEY:
-    raise ValueError("🚨 GEMINI_API_KEY environment variable not found!")
+    raise ValueError("GEMINI_API_KEY environment variable not found!")
 
 MODEL_NAME = "gemini-2.5-flash"  
 client = genai.Client(api_key=API_KEY)
@@ -117,16 +118,21 @@ I need 12 bulletins with two lines for each section!
 
 def fetch_clean_content(prompt_name, prompt_text):
     try:
-        print(f"⏳ Generating {prompt_name}...")
+        print(f"Generating {prompt_name}...")
         response = client.models.generate_content(
             model=MODEL_NAME,
             contents=prompt_text,
             config=base_config
         )
         clean_text = response.text.replace("```markdown", "").replace("```html", "").replace("```", "").strip()
+        
+        # <-- BREATH ADDED HERE -->
+        print("Pausing for 10 seconds to prevent API overload...")
+        time.sleep(10)
+        
         return clean_text
     except Exception as e:
-        print(f"❌ Error in {prompt_name}: {e}")
+        print(f"Error in {prompt_name}: {e}")
         return f"Error generating {prompt_name}."
 
 global_content = fetch_clean_content("Global Sections (1-6)", global_prompt)
