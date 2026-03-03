@@ -3,7 +3,7 @@ name: Daily Global News Generator
 
 on:
   schedule:
-    - cron: '00 18 * * *' # 11:30 PM IST (18:00 UTC)
+    - cron: '30 17 * * *' # 11:00 PM IST (17:30 UTC)
   workflow_dispatch:      # Manual trigger for testing
 
 jobs:
@@ -52,8 +52,8 @@ jobs:
           password: ${{ secrets.GMAIL_APP_PASSWORD }}
           
           # This correctly uses the date we just calculated
-          subject: "నేటి ముఖ్యాంశాలు:  ${{ env.NOW }}"
+          subject: "HOT NEWS: Briefing for ${{ env.NOW }}"
           
           to: ${{ secrets.GMAIL_USER }}
-          from: "జెమిని తెలుగు వార్తా వాహిని"
+          from: "Gemini Intelligence Bot"
           html_body: file://email_body.html
