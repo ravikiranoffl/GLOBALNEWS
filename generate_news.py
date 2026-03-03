@@ -467,7 +467,10 @@ Output strictly using the following Markdown format:
 
 ## SECTION 23 — Gold Rates (Hyderabad Market)
 
-**24 Carat price per 10g:** **22 Carat price per 10g:** **Reason for price movement:** ---
+**24 Carat price per 10g:**  rupee symbol (difference between today and yesterday)
+**22 Carat price per 10g:**  rupee symbol (difference between today and yesterday)
+**Reason for price movement:** ---
+strictly from the website: https://www.goodreturns.in/gold-rates/hyderabad.html
 
 ## SECTION 24 — Key Global Indicators Snapshot
 
@@ -484,6 +487,8 @@ Output strictly using the following Markdown format:
 CRITICAL: You MUST use Google Search to find real-time news for today, 
     including the US-Iran conflict, gold rates from Goodreturns Hyderabad, 
     and India-specific updates for Telangana and Andhra Pradesh.
+    At any cost i dont want i couldnt find or empty result! any result or update should be there! 
+    for every section 4-6 lines are enough! make concise it!
 """
 
     # 5. Inject the live dates into the prompt safely
