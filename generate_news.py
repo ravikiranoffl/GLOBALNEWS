@@ -16,7 +16,25 @@ base_config = types.GenerateContentConfig(
     top_p=0.9,
     top_k=40,
     max_output_tokens=8192,
-    tools=[{'google_search': {}}]
+    tools=[{'google_search': {}}],
+    safety_settings=[
+        types.SafetySetting(
+            category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+            threshold=types.HarmBlockThreshold.BLOCK_NONE,
+        ),
+        types.SafetySetting(
+            category=types.HarmCategory.HARM_CATEGORY_HARASSMENT,
+            threshold=types.HarmBlockThreshold.BLOCK_NONE,
+        ),
+        types.SafetySetting(
+            category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+            threshold=types.HarmBlockThreshold.BLOCK_NONE,
+        ),
+        types.SafetySetting(
+            category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+            threshold=types.HarmBlockThreshold.BLOCK_NONE,
+        )
+    ]
 )
 
 ist_timezone = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
@@ -33,9 +51,6 @@ os.makedirs(year_folder, exist_ok=True)
 
 md_filepath = f"{year_folder}/GN-{file_date_str}.md"
 
-# ==============================
-# MERGED MAIN PROMPT (Sections 1-9, 11-13)
-# ==============================
 main_prompt = f"""
 Act as a Senior Global Intelligence Analyst and Regional Expert. Provide news for {full_date_str}.
 Format strictly as Markdown. Do not include introductory text. 
@@ -86,13 +101,9 @@ From all sections at least 2 lines of explanation or bulletins from all 1 to 12 
 I need 12 bulletins with two lines for each section! 
 """
 
-# ==============================
-# SEPARATE GOLD PROMPT (Section 10)
-# ==============================
 gold_prompt = f"""
 Verify today's gold rates for Hyderabad from Goodreturns.in for {full_date_str}.
 Provide output exactly in this format. Do not add introductory text.
-Strictly from the website: https://www.goodreturns.in/gold-rates/hyderabad.html
 
 ## SECTION 10 — Gold Rates (Hyderabad Market)
 - **24 Carat (10g):** ₹ amount (+/- ₹ difference amount compared to yesterday)
@@ -110,7 +121,6 @@ def fetch_clean_content(prompt_name, prompt_text):
         )
         clean_text = response.text.replace("```markdown", "").replace("```html", "").replace("```", "").strip()
         
-        # <-- BREATH ADDED HERE -->
         print("   💤 Pausing for 10 seconds to prevent API overload...")
         time.sleep(10)
         
@@ -119,19 +129,14 @@ def fetch_clean_content(prompt_name, prompt_text):
         print(f"❌ Error in {prompt_name}: {e}")
         return f"Error generating {prompt_name}."
 
-# 1. Fetch Main Report
 main_content = fetch_clean_content("Main Intelligence Report", main_prompt)
-
-# 2. Fetch Gold Report
 gold_content = fetch_clean_content("Gold Rates (10)", gold_prompt)
 
-# 3. Safely merge Gold into the middle of the Main Report
-if "## SECTION 11" in main_content:
-    final_content_body = main_content.replace("## SECTION 11", f"{gold_content}\n\n## SECTION 11")
+if "SECTION 11" in main_content:
+    final_content_body = main_content.replace("SECTION 11", f"{gold_content}\n\n## SECTION 11")
 else:
     final_content_body = main_content + "\n\n" + gold_content
 
-# 4. Build Final Document
 final_report = f"""# Global Daily Intelligence Briefing
 
 Report ID: GN-{report_id_date}
@@ -151,13 +156,11 @@ with open(md_filepath, "w", encoding="utf-8") as f:
     f.write(final_report)
 print(f"\nFinal Markdown saved flawlessly at: {md_filepath}")
 
-# ==============================
-# TELUGU EMAIL TRANSLATION
-# ==============================
 print("Generating Clean Telugu Email Summary...")
 email_summary_path = "email_body.html"
 
-summary_start = final_content_body.find("## SECTION 13")
+# Changed from "## SECTION 13" to just "SECTION 13" to catch variations
+summary_start = final_content_body.find("SECTION 13")
 
 if summary_start != -1:
     english_summary = final_content_body[summary_start:].strip()
