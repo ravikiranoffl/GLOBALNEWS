@@ -1,552 +1,211 @@
 import os
 import datetime
-from google import genai # Updated import
+from google import genai
+from google.genai import types
 
-# 1. Securely load the API Key from GitHub Secrets
-api_key = os.environ.get("GEMINI_API_KEY")
-if not api_key:
-    raise ValueError("GEMINI_API_KEY environment variable not set. Please check your GitHub Secrets.")
+# ==============================
+# 1. CONFIGURATION & SECURITY
+# ==============================
 
-# 2. Initialize the new GenAI Client
-client = genai.Client(api_key=api_key)
+API_KEY = os.environ.get("GEMINI_API_KEY")
+if not API_KEY:
+    raise ValueError("🚨 GEMINI_API_KEY environment variable not found! Check your GitHub Secrets.")
 
-def generate_and_save_news():
-    # 3. Calculate precise IST Date and Time
-    ist_timezone = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
-    now = datetime.datetime.now(ist_timezone)
-    
-    report_id_date = now.strftime("%Y-%m-%d")          
-    full_date_str = now.strftime("%A, %d %B %Y")       
-    time_str = now.strftime("%H:%M IST")               
-    
-    print(f"Generating briefing for {full_date_str} at {time_str}...")
+MODEL_NAME = "gemini-2.5-flash"  
+client = genai.Client(api_key=API_KEY)
 
-    # 4. Your Complete Master Prompt
-    raw_prompt = """
-Act as a Senior Global News Analyst, Strategic Intelligence Advisor, Policy Expert, and Technology Futurist.
-Produce a comprehensive daily global intelligence briefing that explains world events clearly, factually, and in structured chronological context.
-The briefing must be:
+# Using strict configuration to handle the massive prompt without hallucinating
+base_config = types.GenerateContentConfig(
+    temperature=0.2,            
+    top_p=0.9,
+    top_k=40,
+    max_output_tokens=8192,
+    tools=[{'google_search': {}}]
+)
 
-Clear
-Neutral
-Chronological where necessary
-Easy to read
-Fact-based
-Policy-aware
-Useful for strategic reference
-Do NOT speculate.
-Do NOT exaggerate.
-I want data in every section! find on the internet! 
+# ==============================
+# 2. DATE & TIME SETUP (IST)
+# ==============================
 
-PRIMARY OBJECTIVE
-For every major event, clearly explain:
-What happened
-When it happened (date or timeframe)
-Where it happened
-Who is involved
-Why it happened (background context)
-Immediate impact
-Policy implications
-Likely future consequences (based only on established trends)
-Avoid opinion. Use evidence-based assessment only.
+ist_timezone = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+now = datetime.datetime.now(ist_timezone)
 
-MANDATORY REPORT HEADER FORMAT
-Always begin with:
-Report ID: GN-[REPORT_ID_DATE]
-Full Date: [FULL_DATE_STR]
-Report Time Reference: Data compiled as of [TIME_STR] (UTC+05:30)
-Region Coverage: Global | India | MENA | Technology | Economy
-Report Title: Global Daily Intelligence Briefing — [REPORT_ID_DATE]
+report_id_date = now.strftime("%Y%m%d")
+full_date_str = now.strftime("%-d %B %Y")
+time_str = now.strftime("%H:%M")
 
-WRITING STYLE RULES
-No emojis
-No decorative formatting
-Use simple and direct English
-Short paragraphs
-Explain complex terms in plain language
-Use clear timelines (“In the past 24 hours”, “Earlier this week”, “On [Date]”)
-Avoid repetition across sections
-Avoid academic tone
-No speculation
-State uncertainty clearly
-Maintain neutrality
+# ==============================
+# 3. UNCUT MAIN REPORT PROMPT
+# ==============================
 
-STRUCTURE OF THE DAILY BRIEFING
+main_prompt = f"""
+Act as a Senior Global Intelligence Analyst.
 
-SECTION 1 — Global Pulse (Geopolitics & World Economy)
-Cover major global strategic developments in the last 24–48 hours:
-Wars and conflicts
-Diplomatic relations
-Military operations
-Sanctions and trade restrictions
-Border tensions
-Global economic shifts
-Major international summits
-Explain global implications.
+Produce a structured, neutral, fact-based daily intelligence briefing.
+Focus only on the most important and trending developments from the last 24 hours.
+Avoid repetition. Do not speculate.
 
-SECTION 2 — Global News (Complete Continental Coverage)
-Provide structured coverage from:
-Americas
-Europe
-Africa
-Asia-Pacific
-Oceania
-Small island states and underreported nations
-Include:
-Elections
-Natural disasters
-Major accidents
-Policy shifts
-Social unrest
-Leadership changes
-Avoid missing significant updates.
+Include when relevant:
+What happened | When | Where | Who | Why | Immediate impact | Policy implications.
 
-SECTION 3 — Gulf & MENA Region
-Cover:
-Political developments
-Security updates
-Oil production decisions
-Economic diversification programs
-Infrastructure announcements
-Diplomatic shifts
-Major incidents
-Provide regional impact analysis.
-
-SECTION 4 — Technology and the Future
-Explain clearly:
-Artificial Intelligence developments
-Space missions
-Quantum computing updates
-Biotechnology research
-Robotics advancements
-Major scientific innovation announcements
-Explain impact on society and policy.
-
-SECTION 5 — Tech Industry & Global Business Shifts
-Cover:
-Big tech announcements
-Product launches
-Layoffs
-Mergers and acquisitions
-Startup ecosystem
-Cybersecurity incidents
-Explain economic and employment impact.
-
-SECTION 6 — Science & Research Breakthroughs
-Include:
-Medical discoveries
-Climate research
-Space science
-Physics discoveries
-University research milestones
-Clarify real-world significance.
-
-SECTION 7 — Global Health & Biosecurity Watch
-Report:
-Disease outbreaks
-WHO advisories
-Public health alerts
-Vaccine approvals
-Biosecurity risks
-State confirmed data only.
-
-SECTION 8 — Global Security & Terrorism Monitor
-Cover:
-Terror incidents
-Counterterror operations
-Cyber warfare
-Espionage cases
-National security alerts
-Avoid repetition from earlier sections.
-
-SECTION 9 — Energy, Climate & Environment Watch
-Include:
-Oil market shifts
-Renewable energy investments
-Climate policy updates
-Extreme weather events
-Water security issues
-Explain economic impact.
-
-SECTION 10 — Global Economy & Market Signals
-Provide:
-Major stock index movements
-Inflation signals
-Central bank decisions
-Currency movements
-Commodity price trends
-Include dates and market direction (up/down).
-
-SECTION 11 — Global Infrastructure & Mega Projects
-Cover:
-Major transportation projects
-Ports and airports
-Smart cities
-Digital infrastructure
-Energy corridors
-State timeline and funding where known.
-
-SECTION 12 — Migration & Demographic Trends
-Include:
-Refugee flows
-Labour migration policy changes
-Border enforcement updates
-Population statistics
-Explain political implications.
-
-SECTION 13 — India National (Politics & Governance)
-Include:
-Central government decisions
-Supreme Court judgments
-Cabinet approvals
-National incidents
-Election updates
-Major legislative actions
-Use dates clearly.
-
-SECTION 14 — Telangana State Updates
-Cover:
-Government decisions
-Development projects
-Infrastructure updates
-Administrative actions
-Incidents or emergencies
-Emergencies and Accidents
-Events of Telangana, Notable dates, festivals
-
-SECTION 15 — Andhra Pradesh State Updates
-Cover:
-Schemes and policies
-Infrastructure announcements
-Law and order incidents
-Emergencies & accidents
-Budget decisions
-Events of Andhra Pradesh, Notable dates, festivals
-
-SECTION 16 — Complete MENA Strategic & Technology Developments
-Provide deeper analysis of:
-Economic transformation plans
-Technology adoption
-Regional modernization
-Social reform initiatives
-Future strategic direction
-
-SECTION 17 — Social Media & Public Sentiment Trends
-Summarize:
-Major protests
-Public online debates
-Policy-driven cultural discussions
-Influential digital movements
-Avoid anecdotal claims.
-
-SECTION 18 — Deep Analysis of Most Important Breaking News
-Select ONE major event of the day and explain:
-Root causes
-Historical background
-Key actors
-Strategic importance
-Possible long-term consequences
-Remain evidence-based.
-
-SECTION 19 — This Day in History (Global)
-List 3–5 significant global events that occurred on this date in previous years.
-
-SECTION 20 — This Day in History (India)
-List 3–5 significant Indian historical events on this date.
-
-SECTION 21 — This Week in Review (Last 7 Days)
-Concise summary of major developments from past week.
-
-SECTION 22 — This Month in Review (From 1st of Current Month)
-Structured recap of key global and regional developments.
-
-SECTION 23 — Gold Rates (Hyderabad Market)
-Provide:
-24 Carat price per 10g:    ₹ amount (+/- change from yesterday)
-22 Carat price per 10g:  ₹ amount (+/- change from yesterday)
-Reason for price movement
-Data must match Goodreturns website www.goodreturns.in/gold-rates/hyderabad.html (i strictly want accurate date)
-
-SECTION 24 — Key Global Indicators Snapshot
-Include:
-Crude oil benchmark price (Brent/WTI)
-US Dollar index direction
-Major currency signals
-Global equity trend
-Inflation indicators (if new data released)
-
-SECTION 25 — Strategic Insight / Underreported Development
-Provide one important but underreported trend or emerging risk.
-
-SECTION 26 — Summary for the Busy Reader
-Provide one clear takeaway from each section.
-Short and precise.
-
-VERIFICATION PROTOCOL
-Use reliable international sources
-Cross-check major geopolitical claims
-Avoid unverified social media reports
-Clearly mark developing stories
-No fabricated statistics
-No estimated financial data
-No invented quotes
-If uncertain:
-“This remains a developing story.”
-
-FINAL QUALITY CHECK BEFORE OUTPUT
-Ensure the report is:
-Chronologically anchored
-Globally comprehensive
-Regionally structured
-Factually disciplined
-Neutral in tone
-Free of duplication
-Clear and readable
-Strategic but not speculative
-
-Output strictly using the following Markdown format:
+Output strictly in Markdown.
 
 # Global Daily Intelligence Briefing
 
-**Report ID:** GN-[REPORT_ID_DATE]
-**Full Date:** [FULL_DATE_STR]
-**Report Time Reference:** [TIME_STR] (UTC+05:30)
-**Region Coverage:** Global | India | MENA | Technology | Economy
-**Report Title:** Global Daily Intelligence Briefing — [REPORT_ID_DATE]
-**Report Generated By:** Gemini Pro 3.1 By Google LLC
+Report ID: GN-{report_id_date}
+Full Date: {full_date_str}
+Report Time Reference: {time_str} (UTC+05:30)
+Region Coverage: Global | India | MENA | Technology | Economy
+Report Generated By: Gemini Pro 3.1 By Google LLC
 
 ---
 
-## SECTION 1 — Global Pulse (Geopolitics & World Economy)
+## SECTION 1 — Global Pulse
+(Trending global geopolitics, wars, markets, sports, achievements, summits)
 
-###
-###
-###
+## SECTION 2 — Gulf & MENA Region
+(Major MENA developments only)
 
----
+## SECTION 3 — Technology
+(AI tools released today, major tech shifts)
 
-## SECTION 2 — Global News (Complete Continental Coverage)
+## SECTION 4 — Global Business & Industry
+(Business announcements, CEO statements, M&A)
 
-### Americas
-### Europe
-### Asia-Pacific
-### Africa
+## SECTION 5 — Global Security & Terrorism Monitor
+(Terror, cyber warfare, espionage)
 
----
+## SECTION 6 — Global Economy
+(Stock markets, inflation, central banks, commodities)
 
-## SECTION 3 — Gulf & MENA Region
+## SECTION 7 — India National
+(Top national developments of last 24 hours)
 
-###
-###
-###
+## SECTION 8 — Telangana State Updates
+(All major Telangana news)
 
----
+## SECTION 9 — Andhra Pradesh State Updates
+(All major Andhra news)
 
-## SECTION 4 — Technology and the Future
+## SECTION 11 — This Day in History (India)
+(3–5 historical events)
 
-###
-###
-###
+## SECTION 12 — Deep Analysis
+(One major story explained in depth)
 
----
+## SECTION 13 — Complete Summary
+(One-line takeaway per section)
 
-## SECTION 5 — Tech Industry & Global Business Shifts
-
-###
-###
-
----
-
-## SECTION 6 — Science & Research Breakthroughs
-
-###
-###
-
----
-
-## SECTION 7 — Global Health & Biosecurity Watch
-
-###
-###
-
----
-
-## SECTION 8 — Global Security & Terrorism Monitor
-
-###
-###
-
----
-
-## SECTION 9 — Energy, Climate & Environment Watch
-
-###
-###
-
----
-
-## SECTION 10 — Global Economy & Market Signals
-
-**Crude Oil:** **Equities:** **Currency:** **Central Banks:** ---
-
-## SECTION 11 — Global Infrastructure & Mega Projects
-
-###
-###
-
----
-
-## SECTION 12 — Migration & Demographic Trends
-
-###
-###
-
----
-
-## SECTION 13 — India National (Politics & Governance)
-
-###
-###
-###
-
----
-
-## SECTION 14 — Telangana State Updates
-
-###
-###
-
----
-
-## SECTION 15 — Andhra Pradesh State Updates
-
-###
-###
-
----
-
-## SECTION 16 — Complete MENA Strategic & Technology Developments
-
----
-
-## SECTION 17 — Social Media & Public Sentiment Trends
-
-###
-###
-
----
-
-## SECTION 18 — Deep Analysis of Most Important Breaking News
-
-###
-
-**What Happened:** **Root Causes:** **Historical Background:** **Key Actors:** **Strategic Importance:** **Possible Long-Term Consequences:** ---
-
-## SECTION 19 — This Day in History (Global)
-
--
--
--
-
----
-
-## SECTION 20 — This Day in History (India)
-
--
--
-
----
-
-## SECTION 21 — This Week in Review (Last 7 Days)
-
----
-
-## SECTION 22 — This Month in Review (From 1st of Current Month)
-
----
-
-## SECTION 23 — Gold Rates (Hyderabad Market)
-
-**24 Carat price per 10g:** **22 Carat price per 10g:** **Reason for price movement:** ---
-
-## SECTION 24 — Key Global Indicators Snapshot
-
-**Crude oil benchmark price (Brent/WTI):** **US Dollar index direction:** **Major currency signals:** **Global equity trend:** **Inflation indicators:** ---
-
-## SECTION 25 — Strategic Insight / Underreported Development
-
----
-
-## SECTION 26 — Summary for the Busy Reader
-
-- **Geopolitics:** - **Global News:** - **MENA:** - **Future Tech:** - **Business:** - **Science:** - **Health:** - **Security:** - **Climate:** - **Markets:** - **Mega Projects:** - **Migration:** - **India National:** - **Telangana:** - **Andhra Pradesh:** - **MENA Strategy:** - **Sentiment:** - **Deep Analysis:** - **History (Global):** - **History (India):** - **Week Review:** - **Month Review:** - **Gold:** - **Indicators:** - **Insight:** -- END OF REPORT --
-
-CRITICAL: You MUST use Google Search to find real-time news for today, 
-    including the US-Iran conflict, gold rates from Goodreturns Hyderabad, 
-    and India-specific updates for Telangana and Andhra Pradesh.
+-- END MAIN REPORT --
 """
 
-    # 5. Inject the live dates into the prompt safely
-    final_prompt = raw_prompt.replace("[REPORT_ID_DATE]", report_id_date)
-    final_prompt = final_prompt.replace("[FULL_DATE_STR]", full_date_str)
-    final_prompt = final_prompt.replace("[TIME_STR]", time_str)
+# ==============================
+# 4. GOLD VERIFICATION PROMPT
+# ==============================
 
-    # 6. Call the Gemini API using the new v2 syntax
+gold_prompt = f"""
+Verify today's gold rates for Hyderabad from Goodreturns.in.
+
+STRICT RULES:
+- Use Goodreturns.in Hyderabad page as PRIMARY source.
+- Date must match {full_date_str}.
+- Do not estimate.
+- If unavailable, clearly state unavailable.
+
+Provide output exactly in this format:
+
+## SECTION 10 — Gold Rates (Hyderabad Market)
+
+- **24 Carat (10g):** ₹
+- **22 Carat (10g):** ₹
+- **Change from Yesterday:**
+- **Reason for Movement:**
+- **Source:** Goodreturns.in
+"""
+
+# ==============================
+# 5. GENERATION FUNCTION
+# ==============================
+
+def generate_content(prompt):
     response = client.models.generate_content(
-        model='gemini-2.5-flash',
-        contents=final_prompt,
-        config={
-            'tools': [{'google_search': {}}] 
-        }
+        model=MODEL_NAME,
+        contents=prompt,
+        config=base_config
     )
-    content = response.text
-    
-    # 7. Define folder and exact file path
-    folder_path = "2026"
-    file_name = f"GN-{report_id_date}.md"
-    full_path = os.path.join(folder_path, file_name)
-    
-    # 8. Create the '2026' folder if it doesn't exist yet
-    os.makedirs(folder_path, exist_ok=True)
-    
-    # 9. Save the Markdown file
-    with open(full_path, "w", encoding="utf-8") as file:
-        file.write(content)
-    
-    print(f"Successfully created and saved: {full_path}")
+    return response.text
 
-# 11. Create a Beautiful HTML Summary for Gmail
-    email_summary_path = "email_body.html"
+# ==============================
+# 6. EXECUTION: BUILD REPORTS
+# ==============================
+
+try:
+    print("⏳ Generating Main Intelligence Report...")
+    main_report = generate_content(main_prompt)
+except Exception as e:
+    print(f"❌ Error generating main report: {e}")
+    main_report = "Main report generation failed."
+
+try:
+    print("⏳ Verifying Hyderabad Gold Rates...")
+    gold_section = generate_content(gold_prompt)
+except Exception as e:
+    print(f"❌ Gold verification failed: {e}")
+    gold_section = "## SECTION 10 — Gold Rates (Hyderabad Market)\nGold rate verification failed."
+
+# ==============================
+# 7. MERGE REPORT (Safely Inserting Section 10)
+# ==============================
+
+if "## SECTION 11" in main_report:
+    final_report = main_report.replace("## SECTION 11", f"{gold_section}\n\n## SECTION 11")
+else:
+    final_report = main_report + "\n\n" + gold_section
+
+# Save the full Markdown Archive
+filename = f"Global_Intelligence_Report_{report_id_date}.md"
+with open(filename, "w", encoding="utf-8") as f:
+    f.write(final_report)
+print(f"✅ Final Markdown saved as: {filename}")
+
+# ==============================
+# 8. TELUGU EMAIL TRANSLATION
+# ==============================
+
+print("⏳ Generating Telugu Email Summary...")
+email_summary_path = "email_body.html"
+
+# Safely extract SECTION 13 for the email summary
+summary_start = main_report.find("## SECTION 13")
+
+if summary_start != -1:
+    english_summary = main_report[summary_start:].strip()
     
-    # Find where the summary starts (Section 26)
-    summary_start = content.find("## SECTION 26")
+    telugu_prompt = f"Translate this news summary into professional Telugu (Vaarthalu style). Keep the bullet points:\n\n{english_summary}"
     
-    if summary_start != -1:
-        # Extract the text and strip extra whitespace
-        raw_summary = content[summary_start + 13:].strip()
-        
-        # Convert Markdown bullets (- **) into clean HTML list items (<li><b>)
-        # This makes it look like a professional newsletter in your inbox
-        html_list = raw_summary.replace("- **", "<li><b>").replace("**:", "</b>:").replace("\n- ", "</li><li>")
+    try:
+        telugu_text = generate_content(telugu_prompt)
+        html_list = telugu_text.replace("- **", "<li><b>").replace("**:", "</b>:").replace("\n- ", "</li><li>")
         
         final_html = f"""
         <html>
-          <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-            <h2 style="color: #d32f2f; border-bottom: 2px solid #d32f2f; padding-bottom: 10px;">🚨 HOT TOPICS & BREAKING NEWS</h2>
-            <p style="color: #666; font-weight: bold;">{full_date_str}</p>
+          <body style="font-family: 'Gautami', Arial, sans-serif; line-height: 1.8; color: #333; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+            <h2 style="color: #d32f2f; border-bottom: 2px solid #d32f2f; padding-bottom: 10px;"> ఈరోజు ముఖ్యాంశాలు</h2>
+            <p style="color: #666; font-weight: bold;">తేదీ: {full_date_str}</p>
             <ul style="padding-left: 20px;">
               {html_list}
             </ul>
             <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-            <p style="font-size: 11px; color: #999; text-align: center;">Generated by your Gemini Intelligence Agent • Archived in GitHub</p>
+            <p style="font-size: 11px; color: #999; text-align: center;">జెమిని తెలుగు వార్తా వాహిని ద్వారా రూపొందించబడింది</p>
           </body>
         </html>
         """
-    else:
-        final_html = f"<html><body><h2>New Briefing Available</h2><p>The report for {full_date_str} is ready in your repository.</p></body></html>"
+    except Exception as e:
+        print(f"Telugu translation failed: {e}")
+        final_html = f"<html><body><p>News Briefing for {full_date_str} is ready in GitHub.</p></body></html>"
+else:
+    final_html = f"<html><body><p>News Briefing for {full_date_str} is ready in GitHub.</p></body></html>"
 
-    with open(email_summary_path, "w", encoding="utf-8") as f:
-        f.write(final_html)
-
-if __name__ == "__main__":
-    generate_and_save_news()
+with open(email_summary_path, "w", encoding="utf-8") as f:
+    f.write(final_html)
+print("Telugu Email HTML saved successfully!")
