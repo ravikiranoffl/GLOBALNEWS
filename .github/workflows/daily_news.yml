@@ -1,4 +1,3 @@
-
 name: Daily Global News Generator
 
 on:
@@ -37,10 +36,19 @@ jobs:
           git commit -m "GN$(date +'%Y%m%d')A1" || echo "No changes to commit"
           git push
 
-      # --- STEP TO FIX THE DATE IN SUBJECT ---
-      - name: Get Current Date
-        id: date
-        run: echo "NOW=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+      # --- UPDATED STEP FOR '4th March 2026' FORMAT (WITH IST TIMEZONE) ---
+      - name: Get Formatted Date
+        run: |
+          export TZ='Asia/Kolkata'
+          DAY=$(date +%-d)
+          case $DAY in
+            1|21|31) SUFFIX="st";;
+            2|22)    SUFFIX="nd";;
+            3|23)    SUFFIX="rd";;
+            *)       SUFFIX="th";;
+          esac
+          MONTH_YEAR=$(date +'%B %Y')
+          echo "NOW=${DAY}${SUFFIX} ${MONTH_YEAR}" >> $GITHUB_ENV
 
       # --- SEND THE FORMATTED HTML EMAIL ---
       - name: Send Breaking News Email
@@ -50,10 +58,10 @@ jobs:
           server_port: 465
           username: ${{ secrets.GMAIL_USER }}
           password: ${{ secrets.GMAIL_APP_PASSWORD }}
-          
-          # This correctly uses the date we just calculated
-          subject: "BREAKING NEWS: ${{ env.NOW }}"
-          
+
+          # Your new, clean subject line!
+          subject: "Breaking News: ${{ env.NOW }}"
+
           to: ${{ secrets.GMAIL_USER }}
           from: "The Gemini Chronicle Agent"
           html_body: file://email_body.html
