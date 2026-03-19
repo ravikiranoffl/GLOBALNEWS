@@ -1,6 +1,7 @@
 import os
 import datetime
-from google import genai # Updated import
+import time
+from google import genai
 
 # 1. Securely load the API Key from GitHub Secrets
 api_key = os.environ.get("GEMINI_API_KEY")
@@ -21,8 +22,49 @@ def generate_and_save_news():
     
     print(f"Generating briefing for {full_date_str} at {time_str}...")
 
-    # 4. Your Complete Master Prompt
+    # ==========================================
+    # STEP 1: THE RESEARCHER (Local News Gatherer)
+    # ==========================================
+    print("Step 1: Fetching hyper-local state news and gold rates...")
+    
+    research_prompt = f"""
+    Use Google Search to find the latest news for today ({full_date_str}) in India.
+    Return ONLY a factual summary of the following three topics. Be concise.
+    
+    1. Top 3 news events in Telangana state today.
+    2. Top 3 news events in Andhra Pradesh state today.
+    3. Today's 24 Carat and 22 Carat Gold price per 10g in Hyderabad from the match Goodreturns website www.goodreturns.in/gold-rates/hyderabad.html  including the price change from yesterday.
+    """
+    
+    research_response = client.models.generate_content(
+        model='gemini-2.5-flash',
+        contents=research_prompt,
+        config={'tools': [{'google_search': {}}]}
+    )
+    
+    local_news_data = research_response.text
+    print("Local news fetched successfully!\n")
+
+    # ==========================================
+    # STEP 1.5: THE DELAY (Prevent API Crashes)
+    # ==========================================
+    print("Pausing for 10 seconds to respect API burst limits...")
+    time.sleep(10)
+    print("Resuming...\n")
+
+    # ==========================================
+    # STEP 2: THE WRITER (Global News & Compiling)
+    # ==========================================
+    print("Step 2: Generating global news and compiling the master report...")
+
+    # 4. Your Complete Master Prompt (EXACTLY as you wrote it, plus the data injection)
     raw_prompt = """
+🛑 CRITICAL INSTRUCTION FOR LOCAL NEWS & GOLD 🛑
+I have already researched the local India news and gold rates for you. You MUST use the exact data provided below to write Section 14, Section 15, and Section 23. Do not search for this local news yourself.
+[START LOCAL DATA]
+[LOCAL_NEWS_DATA]
+[END LOCAL DATA]
+
 Act as a Senior Global News Analyst, Strategic Intelligence Advisor, Policy Expert, and Technology Futurist.
 Produce a comprehensive daily global intelligence briefing that explains world events clearly, factually, and in structured chronological context.
 The briefing must be:
@@ -213,6 +255,7 @@ Administrative actions
 Incidents or emergencies
 Emergencies and Accidents
 Events of Telangana, Notable dates, festivals
+(Use the provided [LOCAL DATA] block above for this section)
 
 SECTION 15 — Andhra Pradesh State Updates
 Cover:
@@ -222,6 +265,7 @@ Law and order incidents
 Emergencies & accidents
 Budget decisions
 Events of Andhra Pradesh, Notable dates, festivals
+(Use the provided [LOCAL DATA] block above for this section)
 
 SECTION 16 — Complete MENA Strategic & Technology Developments
 Provide deeper analysis of:
@@ -262,10 +306,10 @@ Structured recap of key global and regional developments.
 
 SECTION 23 — Gold Rates (Hyderabad Market)
 Provide:
-24 Carat price per 10g:    ₹ amount (+/- change from yesterday)
+24 Carat price per 10g:   ₹ amount (+/- change from yesterday)
 22 Carat price per 10g:  ₹ amount (+/- change from yesterday)
 Reason for price movement
-Data must match Goodreturns website www.goodreturns.in/gold-rates/hyderabad.html (i strictly want accurate date)
+Data must match Goodreturns website www.goodreturns.in/gold-rates/hyderabad.html (Use the provided [LOCAL DATA] block above)
 
 SECTION 24 — Key Global Indicators Snapshot
 Include:
@@ -467,8 +511,8 @@ Output strictly using the following Markdown format:
 
 ## SECTION 23 — Gold Rates (Hyderabad Market)
 
-**24 Carat price per 10g:**  rupee symbol (difference between today and yesterday)
-**22 Carat price per 10g:**  rupee symbol (difference between today and yesterday)
+**24 Carat price per 10g:** rupee symbol (difference between today and yesterday)
+**22 Carat price per 10g:** rupee symbol (difference between today and yesterday)
 **Reason for price movement:** ---
 strictly from the website: https://www.goodreturns.in/gold-rates/hyderabad.html
 
@@ -485,16 +529,16 @@ strictly from the website: https://www.goodreturns.in/gold-rates/hyderabad.html
 - **Geopolitics:** - **Global News:** - **MENA:** - **Future Tech:** - **Business:** - **Science:** - **Health:** - **Security:** - **Climate:** - **Markets:** - **Mega Projects:** - **Migration:** - **India National:** - **Telangana:** - **Andhra Pradesh:** - **MENA Strategy:** - **Sentiment:** - **Deep Analysis:** - **History (Global):** - **History (India):** - **Week Review:** - **Month Review:** - **Gold:** - **Indicators:** - **Insight:** -- END OF REPORT --
 
 CRITICAL: You MUST use Google Search to find real-time news for today, 
-    including the US-Iran conflict, gold rates from Goodreturns Hyderabad, 
-    and India-specific updates for Telangana and Andhra Pradesh.
+    including the US-Iran conflict, global news, and tech updates.
     At any cost i dont want i couldnt find or empty result! any result or update should be there! 
     for every section 4-6 lines are enough! make concise it!
 """
 
-    # 5. Inject the live dates into the prompt safely
+    # 5. Inject the live dates and the local news data into the prompt safely
     final_prompt = raw_prompt.replace("[REPORT_ID_DATE]", report_id_date)
     final_prompt = final_prompt.replace("[FULL_DATE_STR]", full_date_str)
     final_prompt = final_prompt.replace("[TIME_STR]", time_str)
+    final_prompt = final_prompt.replace("[LOCAL_NEWS_DATA]", local_news_data)
 
     # 6. Call the Gemini API using the new v2 syntax
     response = client.models.generate_content(
@@ -520,7 +564,7 @@ CRITICAL: You MUST use Google Search to find real-time news for today,
     
     print(f"Successfully created and saved: {full_path}")
 
-# 11. Create a Beautiful HTML Summary for Gmail
+    # 10. Create a Beautiful HTML Summary for Gmail
     email_summary_path = "email_body.html"
     
     # Find where the summary starts (Section 26)
@@ -531,7 +575,6 @@ CRITICAL: You MUST use Google Search to find real-time news for today,
         raw_summary = content[summary_start + 13:].strip()
         
         # Convert Markdown bullets (- **) into clean HTML list items (<li><b>)
-        # This makes it look like a professional newsletter in your inbox
         html_list = raw_summary.replace("- **", "<li><b>").replace("**:", "</b>:").replace("\n- ", "</li><li>")
         
         final_html = f"""
